@@ -52,11 +52,10 @@ import androidx.compose.material.icons.filled.CropOriginal
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -70,6 +69,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -109,13 +111,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kouzenneo.tsugi.core.AxisMode
 import com.kouzenneo.tsugi.core.BgMode
-import com.kouzenneo.tsugi.core.FitMode
 import com.kouzenneo.tsugi.core.HAlign
 import com.kouzenneo.tsugi.core.LayoutConfig
 import com.kouzenneo.tsugi.core.OutFormat
 import com.kouzenneo.tsugi.core.Photo
 import com.kouzenneo.tsugi.core.Preset
-import com.kouzenneo.tsugi.core.SizeMode
 import com.kouzenneo.tsugi.core.VAlign
 import com.kouzenneo.tsugi.core.applyPreset
 import com.kouzenneo.tsugi.render.ExportRenderer
@@ -188,15 +188,6 @@ fun EditorScreen(vm: EditorViewModel, onStart: () -> Unit = {}) {
                     }
                 },
                 actions = {
-                    if (!state.project.isEmpty) {
-                        IconButton(
-                            onClick = {
-                                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            },
-                        ) {
-                            Icon(Icons.Filled.AddPhotoAlternate, contentDescription = "Add images")
-                        }
-                    }
                     IconButton(onClick = vm::undo, enabled = state.canUndo) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
                     }
@@ -458,8 +449,14 @@ private fun DrawScope.drawCheckerboard(width: Float, height: Float) {
 }
 
 /**
- * Docked bottom control center.
- * Live-updates canvas in real time: no modal sheets obscuring the preview!
+ * Docked bottom control center, restructured for clarity:
+ *
+ * - Row 1: thumbnail strip, with the Add tile first so importing is always one tap away.
+ * - Row 2: a single segmented layout switcher (Long / Side / Grid / Photo) plus a
+ *   tune toggle that expands the fine-grained adjust panel.
+ * - Row 3 (expandable): adjust tabs (Layout / Spacing / Style / Trim / Image).
+ *
+ * The canvas live-updates in real time: no modal sheets obscuring the preview.
  */
 @Composable
 private fun DockedEditorPanel(
@@ -474,28 +471,31 @@ private fun DockedEditorPanel(
     onAddImages: () -> Unit,
 ) {
     Surface(
-        tonalElevation = 4.dp,
+        tonalElevation = 3.dp,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.fillMaxWidth()) {
-            // Row 1: Thumbnails strip with "+ Add" card at the end
+            // Row 1: thumbnails with the Add tile leading
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                item {
+                    AddTile(onClick = onAddImages)
+                }
                 itemsIndexed(state.project.photos) { index, photo ->
                     val bitmap = state.previews.getOrNull(index)
                     val isSelected = index == selected
                     Box(
                         Modifier
-                            .size(width = 48.dp, height = 66.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .size(width = 52.dp, height = 70.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surface)
                             .border(
                                 width = if (isSelected) 2.5.dp else 1.dp,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(10.dp),
                             )
                             .clickable { onSelect(index) },
                         contentAlignment = Alignment.Center,
@@ -507,7 +507,7 @@ private fun DockedEditorPanel(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(2.dp)
-                                    .clip(RoundedCornerShape(6.dp)),
+                                    .clip(RoundedCornerShape(8.dp)),
                             )
                         }
                         Text(
@@ -517,7 +517,7 @@ private fun DockedEditorPanel(
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(2.dp)
+                                .padding(3.dp)
                                 .background(
                                     MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                                     RoundedCornerShape(4.dp),
@@ -526,90 +526,61 @@ private fun DockedEditorPanel(
                         )
                     }
                 }
-
-                // Append an "+ Add" card directly at the end of the thumbnail list
-                item {
-                    Box(
-                        Modifier
-                            .size(width = 48.dp, height = 66.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(
-                                width = 1.5.dp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            .clickable(onClick = onAddImages),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Icon(
-                                Icons.Filled.Add,
-                                contentDescription = "Add image",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp),
-                            )
-                            Text(
-                                text = "Add",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                    }
-                }
             }
 
-            // Row 2: Preset Chips & Expand Toggle
+            // Row 2: layout presets as one segmented control + tune toggle
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Row(
-                    Modifier
-                        .weight(1f)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Preset.entries.forEach { preset ->
-                        FilterChip(
+                SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+                    Preset.entries.forEachIndexed { index, preset ->
+                        SegmentedButton(
                             selected = matchesPreset(state.project.config, preset),
                             onClick = { vm.applyPreset(preset) },
+                            shape = SegmentedButtonDefaults.itemShape(index, Preset.entries.size),
                             label = { Text(preset.label) },
                         )
                     }
                 }
-
-                IconButton(
-                    onClick = onToggleExpand,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
-                        contentDescription = if (expanded) "Collapse controls" else "Expand controls",
-                    )
-                }
+                TuneToggle(expanded = expanded, onClick = onToggleExpand)
             }
 
-            // Row 3: Tab Bar & Tab Content (Collapsible)
+            // Row 3: fine-grained adjust panel (collapsible)
             AnimatedVisibility(
                 visible = expanded,
                 enter = expandVertically(),
                 exit = shrinkVertically(),
             ) {
                 Column(Modifier.fillMaxWidth()) {
-                    // Category Tabs
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                            .horizontalScroll(rememberScrollState()),
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Adjust",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        TextButton(onClick = { vm.mutateConfig { LayoutConfig() } }) {
+                            Text("Reset")
+                        }
+                    }
+
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         EditorTab.entries.forEach { tab ->
@@ -637,11 +608,10 @@ private fun DockedEditorPanel(
                         }
                     }
 
-                    // Content of the active tab (scrollable if screen is dense)
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 120.dp, max = 180.dp)
+                            .heightIn(max = 300.dp)
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                             .verticalScroll(rememberScrollState()),
                     ) {
@@ -660,23 +630,65 @@ private fun DockedEditorPanel(
 }
 
 @Composable
+private fun AddTile(onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(width = 52.dp, height = 70.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(
+                width = 1.5.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(10.dp),
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = "Add images",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                text = "Add",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TuneToggle(expanded: Boolean, onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(
+                if (expanded) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            ),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Tune,
+            contentDescription = if (expanded) "Hide adjustments" else "Show adjustments",
+            tint = if (expanded) MaterialTheme.colorScheme.onPrimaryContainer
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
 private fun LayoutTabContent(state: EditorState, vm: EditorViewModel) {
     val cfg = state.project.config
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ChipRow(
-            label = "Direction",
-            options = AxisMode.entries,
-            selected = cfg.axis,
-            text = {
-                when (it) {
-                    AxisMode.VERTICAL -> "Vertical"
-                    AxisMode.HORIZONTAL -> "Horizontal"
-                    AxisMode.GRID -> "Grid"
-                }
-            },
-            onSelect = { axis -> vm.mutateConfig { copy(axis = axis) } },
-        )
-
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (cfg.axis == AxisMode.GRID) {
             Stepper(
                 label = "Columns",
@@ -723,7 +735,7 @@ private fun LayoutTabContent(state: EditorState, vm: EditorViewModel) {
 @Composable
 private fun SpacingTabContent(state: EditorState, vm: EditorViewModel) {
     val cfg = state.project.config
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         LabeledSlider(
             label = "Gap between images",
             value = cfg.gap.toFloat(),
@@ -765,7 +777,7 @@ private fun SpacingTabContent(state: EditorState, vm: EditorViewModel) {
 @Composable
 private fun StyleTabContent(state: EditorState, vm: EditorViewModel) {
     val cfg = state.project.config
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ChipRow(
             label = "Background mode",
             options = BgMode.entries,
@@ -781,7 +793,7 @@ private fun StyleTabContent(state: EditorState, vm: EditorViewModel) {
         )
 
         if (cfg.bgMode == BgMode.COLOR) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Color palette", style = MaterialTheme.typography.bodyMedium)
                 ColorSwatches(
                     colors = SWATCHES,
@@ -796,7 +808,7 @@ private fun StyleTabContent(state: EditorState, vm: EditorViewModel) {
 @Composable
 private fun TrimTabContent(state: EditorState, vm: EditorViewModel) {
     val cfg = state.project.config
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ToggleRow(
             label = "Remove blank space",
             checked = cfg.trimTail,
@@ -829,7 +841,7 @@ private fun ImageTabContent(
     }
 
     val photo = state.project.photos[selected]
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -848,14 +860,14 @@ private fun ImageTabContent(
                 IconButton(
                     onClick = { vm.move(selected, selected - 1) },
                     enabled = selected > 0,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(38.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Move left")
                 }
                 IconButton(
                     onClick = { vm.move(selected, selected + 1) },
                     enabled = selected < state.project.photos.lastIndex,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(38.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Move right")
                 }
@@ -864,7 +876,7 @@ private fun ImageTabContent(
                         vm.removeAt(selected)
                         onSelect(selected.coerceAtMost(state.project.photos.lastIndex - 1).coerceAtLeast(0))
                     },
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(38.dp),
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
                 }
