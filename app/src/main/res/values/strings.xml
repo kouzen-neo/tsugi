@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tsugi</string>
+    <string name="pick_images">Pilih gambar</string>
+    <string name="stitch">Jahit</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
+    <string name="export">Export</string>
+    <string name="layout">Tata letak</string>
+    <string name="layout_vertical">Vertikal</string>
+    <string name="layout_horizontal">Horizontal</string>
+    <string name="layout_grid">Grid</string>
+    <string name="size_mode">Ukuran gambar</string>
+    <string name="size_native">Asli</string>
+    <string name="size_fit_width">Lebar seragam</string>
+    <string name="size_fit_height">Tinggi seragam</string>
+    <string name="size_fixed">Kotak tetap</string>
+    <string name="size_fill">Isi kotak</string>
+    <string name="fit_contain">Muat penuh</string>
+    <string name="fit_cover">Isi penuh (potong)</string>
+    <string name="gap">Jarak</string>
+    <string name="padding">Bingkai luar</string>
+    <string name="corner_radius">Sudut membulat</string>
+    <string name="separator">Garis pemisah</string>
+    <string name="background">Latar</string>
+    <string name="bg_color">Warna</string>
+    <string name="bg_transparent">Transparan</string>
+    <string name="bg_blur">Blur</string>
+    <string name="trim_uniform">Ratakan margin seragam</string>
+    <string name="trim_tail">Buang spasi kosong</string>
+    <string name="columns">Kolom</string>
+    <string name="target_size">Lebar/tinggi target</string>
+    <string name="save_to_gallery">Simpan ke galeri</string>
+    <string name="share">Bagikan</string>
+    <string name="format">Format</string>
+    <string name="quality">Kualitas</string>
+    <string name="remove">Hapus</string>
+    <string name="move_left">Geser sebelum</string>
+    <string name="move_right">Geser sesudah</string>
+    <string name="reset_scale">Kembalikan ukuran</string>
+    <string name="image_scale">Skala gambar ini</string>
+    <string name="empty_hint">Tekan + untuk menambah gambar</string>
+    <string name="exporting">Mengekspor…</string>
+</resources>
